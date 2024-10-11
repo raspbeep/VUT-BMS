@@ -1,0 +1,22 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "(lldb) Launch",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/rds_encoder",
+      // "args": ["-g", "0A", "-pi", "4660", "-pty", "5", "-tp", "1", "-ms", "0", "-ta", "1", "-af", "87.7,107.9", "-ps", "\"Radio\""],
+      "args": ["-g", "2A", "-pi", "4660", "-pty", "5", "-tp", "1", "-rt", "\"Lorem\"", "-ab", "0"],
+      "stopAtEntry": false,
+      "cwd": "${fileDirname}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "lldb"
+    }
+
+  ]
+}
