@@ -1,7 +1,6 @@
 #include <iostream>
 #include <cstdio>
 #include <string>
-#include <map>
 #include <sstream>
 #include <vector>
 #include <iomanip>
@@ -12,8 +11,7 @@ enum GroupType {
     GROUP_2A
 };
 
-using ushort = unsigned short;
-using argsMap = std::map<std::string, std::string>;
+using argsMap = std::unordered_map<std::string, std::string>;
 using GroupTypeMap = std::unordered_map<GroupType, std::array<ushort, 4>>;
 using VersionCodeMap = std::unordered_map<GroupType, std::array<ushort, 1>>;
 using OffsetMap = std::unordered_map<std::string, std::array<ushort, 10>>;
@@ -614,11 +612,11 @@ public:
         }
     }
 
-    Error getError() {
+    Error get_error() {
         return error;
     }
 
-    GroupType getGroupType() {
+    GroupType get_group_type() {
         return groupType;
     }
 
@@ -661,11 +659,11 @@ public:
 
 int main(int argc, char* argv[]) {
     auto parser = ArgumentParser(argc, argv);
-    if (parser.getError() != ArgumentParser::NO_ERROR) {
+    if (parser.get_error() != ArgumentParser::NO_ERROR) {
         return 1;
     }
 
-    if (parser.getGroupType() == GroupType::GROUP_0A) {
+    if (parser.get_group_type() == GroupType::GROUP_0A) {
         Group0A group(parser.get_pi(),
                       parser.get_pty(),
                       parser.get_tp(),
@@ -675,7 +673,7 @@ int main(int argc, char* argv[]) {
                       parser.get_ps());
             std::cout << "Group 0A" << std::endl;
             group.generate_group_bit_vector();
-    } else if (parser.getGroupType() == GroupType::GROUP_2A) {
+    } else if (parser.get_group_type() == GroupType::GROUP_2A) {
         Group2A group(parser.get_pi(),
                       parser.get_pty(),
                       parser.get_tp(),
