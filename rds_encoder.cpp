@@ -5,6 +5,13 @@
 #include <vector>
 #include <iomanip>
 #include <unordered_map>
+#include <regex>
+#include <algorithm>
+
+const std::regex frequency_regex(R"(^\d{2,3}\.\d$)");
+// no decimal point for comparison with integer
+const double MIN_FREQUENCY = 876;
+const double MAX_FREQUENCY = 1079;
 
 enum GroupType {
     GROUP_0A,
@@ -36,129 +43,6 @@ OffsetMap offset_map = {
     {"D", {0,1,1,0,1,1,0,1,0,0}},
 };
 
-class EncoderHelper {
-public:
-    const std::vector<std::string> all_frequencies;
-    const std::unordered_map<std::string, std::array<ushort, 8>> frequency_codes_map;
-    const std::unordered_map<char, std::array<ushort, 8>> character_encoding_map = {
-        {'\r',{0, 0, 0, 0, 1, 1, 0, 1}}, // radio text ending 0D (hex) if length < 64
-        {' ', {0, 0, 1, 0, 0, 0, 0, 0}},
-
-        {'0', {0, 0, 1, 1, 0, 0, 0, 0}},
-        {'1', {0, 0, 1, 1, 0, 0, 0, 1}},
-        {'2', {0, 0, 1, 1, 0, 0, 1, 0}},
-        {'3', {0, 0, 1, 1, 0, 0, 1, 1}},
-        {'4', {0, 0, 1, 1, 0, 1, 0, 0}},
-        {'5', {0, 0, 1, 1, 0, 1, 0, 1}},
-        {'6', {0, 0, 1, 1, 0, 1, 1, 0}},
-        {'7', {0, 0, 1, 1, 0, 1, 1, 1}},
-        {'8', {0, 0, 1, 1, 1, 0, 0, 0}},
-        {'9', {0, 0, 1, 1, 1, 0, 0, 1}},
-
-        {'A', {0, 1, 0, 0, 0, 0, 0, 1}},
-        {'B', {0, 1, 0, 0, 0, 0, 1, 0}},
-        {'C', {0, 1, 0, 0, 0, 0, 1, 1}},
-        {'D', {0, 1, 0, 0, 0, 1, 0, 0}},
-        {'E', {0, 1, 0, 0, 0, 1, 0, 1}},
-        {'F', {0, 1, 0, 0, 0, 1, 1, 0}},
-        {'G', {0, 1, 0, 0, 0, 1, 1, 1}},
-        {'H', {0, 1, 0, 0, 1, 0, 0, 0}},
-        {'I', {0, 1, 0, 0, 1, 0, 0, 1}},
-        {'J', {0, 1, 0, 0, 1, 0, 1, 0}},
-        {'K', {0, 1, 0, 0, 1, 0, 1, 1}},
-        {'L', {0, 1, 0, 0, 1, 1, 0, 0}},
-        {'M', {0, 1, 0, 0, 1, 1, 0, 1}},
-        {'N', {0, 1, 0, 0, 1, 1, 1, 0}},
-        {'O', {0, 1, 0, 0, 1, 1, 1, 1}},
-
-        {'P', {0, 1, 0, 1, 0, 0, 0, 0}},
-        {'Q', {0, 1, 0, 1, 0, 0, 0, 1}},
-        {'R', {0, 1, 0, 1, 0, 0, 1, 0}},
-        {'S', {0, 1, 0, 1, 0, 0, 1, 1}},
-        {'T', {0, 1, 0, 1, 0, 1, 0, 0}},
-        {'U', {0, 1, 0, 1, 0, 1, 0, 1}},
-        {'V', {0, 1, 0, 1, 0, 1, 1, 0}},
-        {'W', {0, 1, 0, 1, 0, 1, 1, 1}},
-        {'X', {0, 1, 0, 1, 1, 0, 0, 0}},
-        {'Y', {0, 1, 0, 1, 1, 0, 0, 1}},
-        {'Z', {0, 1, 0, 1, 1, 0, 1, 0}},
-
-        {'a', {0, 1, 1, 0, 0, 0, 0, 1}},
-        {'b', {0, 1, 1, 0, 0, 0, 1, 0}},
-        {'c', {0, 1, 1, 0, 0, 0, 1, 1}},
-        {'d', {0, 1, 1, 0, 0, 1, 0, 0}},
-        {'e', {0, 1, 1, 0, 0, 1, 0, 1}},
-        {'f', {0, 1, 1, 0, 0, 1, 1, 0}},
-        {'g', {0, 1, 1, 0, 0, 1, 1, 1}},
-        {'h', {0, 1, 1, 0, 1, 0, 0, 0}},
-        {'i', {0, 1, 1, 0, 1, 0, 0, 1}},
-        {'j', {0, 1, 1, 0, 1, 0, 1, 0}},
-        {'k', {0, 1, 1, 0, 1, 0, 1, 1}},
-        {'l', {0, 1, 1, 0, 1, 1, 0, 0}},
-        {'m', {0, 1, 1, 0, 1, 1, 0, 1}},
-        {'n', {0, 1, 1, 0, 1, 1, 1, 0}},
-        {'o', {0, 1, 1, 0, 1, 1, 1, 1}},
-
-        {'p', {0, 1, 1, 1, 0, 0, 0, 1}},
-        {'q', {0, 1, 1, 1, 0, 0, 0, 1}},
-        {'r', {0, 1, 1, 1, 0, 0, 1, 0}},
-        {'s', {0, 1, 1, 1, 0, 0, 1, 1}},
-        {'t', {0, 1, 1, 1, 0, 1, 0, 0}},
-        {'u', {0, 1, 1, 1, 0, 1, 0, 1}},
-        {'v', {0, 1, 1, 1, 0, 1, 1, 0}},
-        {'w', {0, 1, 1, 1, 0, 1, 1, 1}},
-        {'x', {0, 1, 1, 1, 1, 0, 0, 0}},
-        {'y', {0, 1, 1, 1, 1, 0, 0, 1}},
-        {'z', {0, 1, 1, 1, 1, 0, 1, 0}},
-    };
-private:
-    std::vector<std::string> generate_frequencies() {
-        std::vector<std::string> frequencies = {};
-        for (size_t first = 87; first < 108; ++first) {
-            for (size_t second = 0; second < 10; ++second) {
-                if ((first == 87 && second < 6)) {
-                    continue;
-                }
-                std::ostringstream oss;
-                oss << std::fixed << std::setprecision(1) << first << "." << second;
-                frequencies.push_back(oss.str());
-            }
-        }
-        return frequencies;
-    }
-
-    std::unordered_map<std::string, std::array<ushort, 8>> generate_frequency_codes_map() {
-        std::unordered_map<std::string, std::array<ushort, 8>> binary_values = {};
-        for (size_t i = 0; i < all_frequencies.size(); ++i) {
-            binary_values[all_frequencies[i]] = fill_n_bit_unsigned_arr_rev(i + 1);
-        }
-        return binary_values;
-    }
-
-    std::array<ushort, 8> fill_n_bit_unsigned_arr_rev(size_t val) {
-        std::array<ushort, 8> result = {0};
-        for (size_t i = 0; i < 8; i++) {
-            result[i] = val % 2;
-            val >>= 1;
-        }
-        std::reverse(std::begin(result), std::end(result));
-        return result;
-    }
-public:
-    EncoderHelper() : all_frequencies(generate_frequencies()), frequency_codes_map(generate_frequency_codes_map()) {}
-public:
-    template <std::size_t N>
-    std::array<ushort, N> arr_to_number(const std::array<ushort, N>& arr) {
-        unsigned int result = 0;
-        for (size_t i = 0; i < N; ++i) {
-            result |= (arr[i] << (N - 1 - i));
-        }
-        return result;
-    }
-};
-
-EncoderHelper FE = EncoderHelper();
-
 class CommonGroup {
 public:
     CommonGroup(GroupType group_type_code, ushort program_identification, bool traffic_program, ushort program_type)
@@ -188,14 +72,14 @@ public:
     }
 protected:
     std::array<std::array<ushort, 8>, 8> fill_character_string(const std::string& str) {
-        std::array<std::array<ushort, 8>, 8> result;
-        for (size_t i = 0; i < str.size(); i++) {
-            std::array<ushort, 8> encoding = FE.character_encoding_map.at(str[i]);
-            for (size_t j = 0; j < encoding.size(); j++) {
-                result[i][j] = encoding[j];
-            }
+    std::array<std::array<ushort, 8>, 8> result = {};
+    for (size_t i = 0; i < str.size() && i < 8; i++) {
+        std::bitset<8> bits(static_cast<unsigned long>(str[i]));
+        for (size_t j = 0; j < 8; j++) {
+            result[i][j] = bits[7 - j];
         }
-        return result;
+    }
+    return result;
     }
 
     template <std::size_t N>
@@ -302,18 +186,21 @@ public:
 private:
     RadioText fill_n_bit_unsigned_vec(const std::string& str) {
         RadioText result;
-        for (size_t i = 0; i < str.size(); i++) {
-            result.push_back(FE.character_encoding_map.at(str[i]));
+        for (size_t i = 0; i < str.size() && i < 8; i++) {
+        std::bitset<8> bits(static_cast<unsigned long>(str[i]));
+        for (size_t j = 0; j < 8; j++) {
+            result[i][j] = bits[7 - j];
         }
+    }
         return result;
     }
 
     void rt_copy_n_bits_at_pos(BlockArray& block, const RadioText& rt, size_t& block_pos, size_t rt_pos) {
         size_t rt_size = rt.size();
-        std::array<ushort, 8> char_enc_to_copy = FE.character_encoding_map.at(' ');
+        std::array<ushort, 8> char_enc_to_copy = {0, 0, 1, 0, 0, 0, 0, 0};
         if (rt_pos == rt_size) {
             // end radio text with carriage return
-            char_enc_to_copy = FE.character_encoding_map.at('\r');
+            char_enc_to_copy = {0, 0, 0, 0, 1, 1, 0, 1};
         } else if (rt_pos < rt_size) {
             // fill with spaces
             char_enc_to_copy = rt[rt_pos];
@@ -348,7 +235,7 @@ private:
     /* Program Service (8bit char * 2 per message * 4 groups = 8 chars) */
     std::array<std::array<ushort, 8>, 8>  ps;
 private:
-    const std::array<std::string, 2> af_strings;
+    const std::array<uint8_t, 2> afs;
     const std::string ps_string;
 
 public:
@@ -357,15 +244,15 @@ public:
             const bool traffic_program,
             const bool music_speech,
             const bool traffic_announcement,
-            const std::array<std::string, 2> alternative_frequencies,
+            const std::array<uint8_t, 2> alternative_frequencies,
             const std::string& program_service)
             : CommonGroup(GROUP_0A, program_identification, traffic_program, program_type),
               ms(fill_boolean_arr(music_speech)),
               ta(fill_boolean_arr(traffic_announcement)),
-              af1(FE.frequency_codes_map.at(alternative_frequencies[0])),
-              af2(FE.frequency_codes_map.at(alternative_frequencies[1])),
+              af1(fill_n_bit_unsigned_arr<8>(alternative_frequencies[0])),
+              af2(fill_n_bit_unsigned_arr<8>(alternative_frequencies[1])),
               ps(fill_character_string(program_service)),
-              af_strings(alternative_frequencies),
+              afs(alternative_frequencies),
               ps_string(program_service) {}
 
     GroupBitVector generate_group_bit_vector() override {
@@ -407,7 +294,7 @@ public:
                         std::cout << " 0A "<< pty[0] << pty[1] << pty[2] << pty[3] << pty[4];
                         break;
                     case 2:
-                        std::cout << " " << af_strings[0] << " " << af_strings[1];
+                        std::cout << " " << static_cast<unsigned int>(afs[0]) << "(" << (afs[0] + 875) / 10 << ")" << static_cast<unsigned int>(afs[1]);
                         break;
                     case 3:
                         std::cout << " " << ps_string[i * 2] << " " << ps_string[i * 2 + 1];
@@ -472,7 +359,7 @@ private:
     // 0A
     bool ms;
     bool ta;
-    std::array<std::string, 2> frequencies_strings;
+    std::array<uint8_t, 2> frequencies_strings;
     std::string ps;
 
     // 2A
@@ -480,25 +367,46 @@ private:
     bool radio_text_ab_flag;
 
 private:
-    void parse_frequencies() {
-        std::stringstream ss(alternative_frequencies);
-        std::string token;
-        unsigned counter = 0;
-        while (std::getline(ss, token, ',')) {
-            if (counter >= 2) error = INVALID_FREQUENCIES;
-            if (std::find(FE.all_frequencies.begin(), FE.all_frequencies.end(), token) == FE.all_frequencies.end()) {
-                std::cerr << "Error: Invalid frequency " << token << "\n";
-                error = INVALID_FREQUENCIES;
-            }
-            frequencies_strings[counter] = token;
-            counter++;
+void parse_frequencies() {
+    std::stringstream ss(alternative_frequencies);
+    std::string token;
+    unsigned counter = 0;
+    while (std::getline(ss, token, ',')) {
+        if (counter >= 2) {
+            error = INVALID_FREQUENCIES;
+            break;
         }
-        if (counter != 2) error = INVALID_FREQUENCIES;
         
-        if (error == INVALID_FREQUENCIES) {
-            std::cerr << "Error: Invalid alternative frequencies\n";
+        // Check if the token matches the frequency regex
+        if (!std::regex_match(token, frequency_regex)) {
+            std::cerr << "Error: Invalid frequency format " << token << "\n";
+            error = INVALID_FREQUENCIES;
+            break;
         }
+        
+        // Remove the decimal point and convert to integer
+        std::string frequency_str = token;
+        frequency_str.erase(std::remove(frequency_str.begin(), frequency_str.end(), '.'), frequency_str.end());
+        int frequency_int = std::stoi(frequency_str);
+
+        if (frequency_int < MIN_FREQUENCY || frequency_int > MAX_FREQUENCY) {
+            std::cerr << "Error: Invalid frequency " << frequency_int << " (must be in range <" << MIN_FREQUENCY << "," << MAX_FREQUENCY << ">)\n";
+            error = INVALID_FREQUENCIES;
+            break;
+        }
+        
+        frequencies_strings[counter] = frequency_int - 875;
+        counter++;
     }
+    
+    if (counter != 2) {
+        error = INVALID_FREQUENCIES;
+    }
+    
+    if (error == INVALID_FREQUENCIES) {
+        std::cerr << "Error: Invalid alternative frequencies\n";
+    }
+}
 
     void parse_boolean(const std::string& flag_value, bool& value) {
         if (flag_value != "0" && flag_value != "1") {
@@ -620,7 +528,7 @@ public:
         return groupType;
     }
 
-    std::array<std::string, 2> get_frequencies() {
+    std::array<uint8_t, 2> get_frequencies() {
         return frequencies_strings;
     }
 
