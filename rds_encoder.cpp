@@ -16,23 +16,16 @@ const double MAX_FREQUENCY = 1079;
 enum GroupType { GROUP_0A, GROUP_2A };
 
 using argsMap = std::unordered_map<std::string, std::string>;
-using GroupTypeMap = std::unordered_map<GroupType, uint8_t>;
-using VersionCodeMap = std::unordered_map<GroupType, uint8_t>;
-using OffsetMap = std::unordered_map<std::string, std::array<ushort, 10>>;
-using BlockArray = std::array<ushort, 104>;
-using GroupBitVector = std::vector<BlockArray>;
-using RadioText = std::vector<std::array<ushort, 8>>;
 
-GroupTypeMap group_type_code_map = {{GROUP_0A, 0}, {GROUP_2A, 2}};
+const uint8_t group_type_code_0A = 0b00000;
+const uint8_t group_type_code_2A = 0b00100;
 
-VersionCodeMap version_code_map = {{GROUP_0A, 0}, {GROUP_2A, 1}};
+const uint32_t offset_A = 252;
+const uint32_t offset_B = 408;
+const uint32_t offset_C = 360;
+const uint32_t offset_D = 436;
 
-OffsetMap offset_map = {
-    {"A", {0, 0, 1, 1, 1, 1, 1, 1, 0, 0}},
-    {"B", {0, 1, 1, 0, 0, 1, 1, 0, 0, 0}},
-    {"C", {0, 1, 0, 1, 1, 0, 1, 0, 0, 0}},
-    {"D", {0, 1, 1, 0, 1, 1, 0, 1, 0, 0}},
-};
+constexpr std::bitset<26> crc_bitset = 0b10110111001;
 
 const unsigned int PI_FLAG = 1;
 const unsigned int PTY_FLAG = 2;
@@ -44,7 +37,7 @@ const unsigned int PS_FLAG = 64;
 const unsigned int RT_FLAG = 128;
 const unsigned int AB_FLAG = 256;
 
-const unsigned int complete_group_0A_flags = 0b1111111;
+const unsigned int complete_group_0A_flags = 0b001111111;
 const unsigned int complete_group_2A_flags = 0b110000111;
 
 void print_lower_5_bits(uint8_t value) {
@@ -53,21 +46,42 @@ void print_lower_5_bits(uint8_t value) {
   }
 }
 
-void print_16_bits(uint16_t value) {
-  for (int i = 15; i >= 0; --i) {
+void print_26_bits(uint32_t value) {
+  for (int i = 25; i >= 0; --i) {
     std::cout << ((value >> i) & 1);
+    if (i == 10)
+      std::cout << " ";
   }
+  std::cout << std::endl;
+}
+
+uint32_t crc(uint32_t value, uint32_t offset) {
+  std::bitset<26> and_mask = 0b1111111111;
+  std::bitset<26> offset_bitset = offset;
+  std::bitset<26> and_check = 1<<25;
+  std::bitset<26> val = value;
+  for (int i = 15; i >= 0; i--) {
+    if ((val & and_check) == 0) {
+      and_check >>= static_cast<uint8_t>(1);
+      continue;
+    }
+    val ^= (crc_bitset << static_cast<uint8_t>(i));
+    and_check >>= 1;
+  }
+
+  val &= and_mask;
+  val ^= offset_bitset;
+  return static_cast<uint32_t>(val.to_ulong());
 }
 
 class CommonGroup {
 public:
-  CommonGroup(GroupType group_type_code, const uint16_t program_identification,
+  CommonGroup(const uint8_t gt_vc, const uint16_t program_identification,
               const bool traffic_program, const uint8_t program_type)
-      : group_type_code(group_type_code_map[group_type_code]),
-        vc(version_code_map[group_type_code]), pi(program_identification),
-        tp(traffic_program), pty(program_type) {}
+      : gt_vc(gt_vc), pi(program_identification), tp(traffic_program),
+        pty(program_type) {}
 
-  virtual GroupBitVector generate_group_bit_vector() = 0;
+  virtual void print_bits() = 0;
 
 public:
   std::array<ushort, 1> fill_boolean_arr(bool val) { return {val}; }
@@ -84,19 +98,8 @@ public:
   }
 
 protected:
-  template <std::size_t N>
-  void copy_n_bits_at_pos(BlockArray &dst, const std::array<ushort, N> &src,
-                          size_t &pos) {
-    for (size_t i = 0; i < N; i++) {
-      dst[pos++] = src[i];
-    }
-  }
-
-protected:
-  /* Group Type 0 (0000), 1 (0001), 2 (0010), 3 (0011) */
-  uint8_t group_type_code;
-  /* Version Code A (0) or B (1)*/
-  bool vc;
+  /* Group Type Code + VC; 0A=0000, 2A=0010 */
+  uint8_t gt_vc;
   /* Program Identification */
   uint16_t pi;
   /* Traffic Program */
@@ -119,73 +122,12 @@ public:
   Group2A(const u_int16_t program_identification, const uint8_t program_type,
           const bool traffic_program, const std::string &radio_text_string,
           const bool radio_text_a_b)
-      : CommonGroup(GROUP_2A, program_identification, traffic_program,
+      : CommonGroup(group_type_code_2A, program_identification, traffic_program,
                     program_type),
         rt(radio_text_string), ab(radio_text_a_b),
         radio_text(radio_text_string) {}
 
-  GroupBitVector generate_group_bit_vector() override {
-    // GroupBitVector stream;
-    // size_t n_groups = (radio_text.size() + 3) / 4;
-    // if (n_groups < 16 && radio_text.size() % 4 == 0)
-    //   n_groups++;
-    // for (size_t g = 0; g < n_groups; g++) {
-    //   BlockArray block = {0};
-    //   size_t pos = 0;
-    //   copy_n_bits_at_pos(block, pi, pos);
-    //   pos += 10; // add CRC
-    //   copy_n_bits_at_pos(block, group_type_code, pos);
-    //   copy_n_bits_at_pos(block, vc, pos);
-    //   copy_n_bits_at_pos(block, tp, pos);
-    //   copy_n_bits_at_pos(block, pty, pos);
-    //   copy_n_bits_at_pos(block, ab, pos);
-    //   copy_n_bits_at_pos(block, this->fill_n_bit_unsigned_arr<4>((ushort)g),
-    //                      pos);
-    //   pos += 10; // add CRC
-    //   // TODO: check string length
-    //   rt_copy_n_bits_at_pos(block, rt, pos, g * 4);
-    //   rt_copy_n_bits_at_pos(block, rt, pos, g * 4 + 1);
-    //   pos += 10; // add CRC
-    //   rt_copy_n_bits_at_pos(block, rt, pos, g * 4 + 2);
-    //   rt_copy_n_bits_at_pos(block, rt, pos, g * 4 + 3);
-    //   pos += 10; // add CRC
-
-    //   stream.push_back(block);
-    // }
-    // // 4 groups
-    // for (size_t g = 0; g < n_groups; g++) {
-    //   // 4 blocks
-    //   auto rts = this->fill_n_bit_unsigned_arr<4>((ushort)g);
-    //   for (size_t b = 0; b < 4; b++) {
-    //     for (size_t i = 0; i < 26; i++) {
-    //       std::cout << stream[g][b * 26 + i];
-    //       if (i == 15)
-    //         std::cout << " ";
-    //     }
-    //     switch (b) {
-    //     case 0:
-    //       std::cout << " " << pi_number;
-    //       break;
-    //     case 1:
-    //       std::cout << " 2A " << tp[0] << " " << pty[0] << pty[1] << pty[2]
-    //                 << pty[3] << pty[4] << " " << ab[0] << " " << rts[0]
-    //                 << rts[1] << rts[2] << rts[3];
-    //       break;
-    //     case 2:
-    //       rt_print_char_at_pos(g * 4);
-    //       rt_print_char_at_pos(g * 4 + 1);
-    //       break;
-    //     case 3:
-    //       rt_print_char_at_pos(g * 4 + 2);
-    //       rt_print_char_at_pos(g * 4 + 3);
-    //       break;
-    //     }
-    //     std::cout << std::endl;
-    //   }
-    //   std::cout << std::endl;
-    // }
-
-    // return stream;
+  void print_bits() override {
   }
 };
 
@@ -208,36 +150,67 @@ public:
           const bool traffic_program, const bool music_speech,
           const bool traffic_announcement, const uint8_t af1, const uint8_t af2,
           const std::string &program_service)
-      : CommonGroup(GROUP_0A, program_identification, traffic_program,
+      : CommonGroup(group_type_code_0A, program_identification, traffic_program,
                     program_type),
         ms(music_speech), ta(traffic_announcement), af1(af1), af2(af2),
         ps(program_service) {}
 
-  GroupBitVector generate_group_bit_vector() override {
-    GroupBitVector stream;
+  void print_bits() {
+    uint32_t line{};
     for (size_t b = 0; b < 4; b++) {
+      line = 0;
+      line |= (pi << 10);
+      line |= crc(line, offset_A);
+      print_26_bits(line);
+
+      line = 0;
+      line |= static_cast<uint32_t>(gt_vc) << 21;
+      line |= static_cast<uint32_t>(tp)    << 20;
+      line |= static_cast<uint32_t>(pty)   << 15;
+      line |= static_cast<uint32_t>(ta)    << 14;
+      line |= static_cast<uint32_t>(ms)    << 13;
+      line |= crc(line, offset_B);
+      print_26_bits(line);
+
+      line = 0;
+      line |= static_cast<uint32_t>(af1)   << 18;
+      line |= static_cast<uint32_t>(af2)   << 10;
+      line |= crc(line, offset_C);
+      print_26_bits(line);
+
+      line = 0;
+      uint8_t c1 = ps[(b * 2)];
+      uint8_t c2 = ps[(b * 2) + 1];
+      line |= static_cast<uint32_t>(c1)    << 18;
+      line |= static_cast<uint32_t>(c2)    << 10;
+      line |= crc(line, offset_D);
+      print_26_bits(line);
+      std::cout << std::endl;
     }
   }
 };
 
 // Function to handle Group 0A encoding
 void encode_group_0A(const argsMap &args) {
-  std::cout << "Encoding Group 0A...\n";
-  std::cout << "Program Identification (PI): " << args.at("-pi") << "\n";
-  std::cout << "Program Type (PTY): " << args.at("-pty") << "\n";
-  std::cout << "Traffic Program (TP): " << args.at("-tp") << "\n";
-  std::cout << "Music/Speech (MS): " << args.at("-ms") << "\n";
-  std::cout << "Traffic Announcement (TA): " << args.at("-ta") << "\n";
+  std::cout << "Encoding Group 0A..." << std::endl;
+  std::cout << "Program Identification (PI): " << args.at("-pi") << std::endl;
+  std::cout << "Program Type (PTY): " << args.at("-pty") << std::endl;
+  std::cout << "Traffic Program (TP): " << args.at("-tp") << std::endl;
+  std::cout << "Music/Speech (MS): " << args.at("-ms") << std::endl;
+  std::cout << "Traffic Announcement (TA): " << args.at("-ta") << std::endl;
+  std::cout << "Alternative Frequencies (AF): " << args.at("-af") << std::endl;
+  std::cout << std::endl;
 }
 
 // Function to handle Group 2A encoding
 void encodeGroup2A(const argsMap &args) {
-  std::cout << "Encoding Group 2A...\n";
-  std::cout << "Program Identification (PI): " << args.at("-pi") << "\n";
-  std::cout << "Program Type (PTY): " << args.at("-pty") << "\n";
-  std::cout << "Traffic Program (TP): " << args.at("-tp") << "\n";
-  std::cout << "Radio Text (RT): " << args.at("-rt") << "\n";
-  std::cout << "Radio Text A/B flag (AB): " << args.at("-ab") << "\n";
+  std::cout << "Encoding Group 2A..." << std::endl;
+  std::cout << "Program Identification (PI): " << args.at("-pi") << std::endl;
+  std::cout << "Program Type (PTY): " << args.at("-pty") << std::endl;
+  std::cout << "Traffic Program (TP): " << args.at("-tp") << std::endl;
+  std::cout << "Radio Text (RT): " << args.at("-rt") << std::endl;
+  std::cout << "Radio Text A/B flag (AB): " << args.at("-ab") << std::endl;
+  std::cout << std::endl;
 }
 
 class ArgumentParser {
@@ -552,6 +525,8 @@ public:
   std::string get_rt() { return radio_text; }
 
   bool get_ab() { return radio_text_ab_flag; }
+
+  argsMap get_args() { return args; }
 };
 
 int main(int argc, char *argv[]) {
@@ -566,15 +541,15 @@ int main(int argc, char *argv[]) {
                   parser.get_ms(), parser.get_ta(), parser.get_af1(),
                   parser.get_af2(), parser.get_ps());
 
-    std::cout << "Group 0A" << std::endl;
+    encode_group_0A(parser.get_args());
+    group.print_bits();
 
-    //   std::cout << "Group 0A" << std::endl;
-    //   group.generate_group_bit_vector();
-    // } else if (parser.get_group_type() == GroupType::GROUP_2A) {
-    //   Group2A group(parser.get_pi(), parser.get_pty(), parser.get_tp(),
-    //                 parser.get_rt(), parser.get_ab());
-    //   std::cout << "Group 2A" << std::endl;
-    //   group.generate_group_bit_vector();
+  } else if (parser.get_group_type() == GroupType::GROUP_2A) {
+    Group2A group(parser.get_pi(), parser.get_pty(), parser.get_tp(),
+                  parser.get_rt(), parser.get_ab());
+
+    encodeGroup2A(parser.get_args());
+    group.print_bits();
   }
 
   return 0;
