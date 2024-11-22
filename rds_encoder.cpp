@@ -7,6 +7,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <bitset>
 
 const std::regex frequency_regex(R"(^\d{2,3}\.\d$)");
 // no decimal point for comparison with integer
