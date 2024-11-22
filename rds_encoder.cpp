@@ -49,10 +49,10 @@ void print_lower_5_bits(uint8_t value) {
 void print_26_bits(uint32_t value) {
   for (int i = 25; i >= 0; --i) {
     std::cout << ((value >> i) & 1);
-    if (i == 10)
-      std::cout << " ";
+    // if (i == 10)
+    //   std::cout << " ";
   }
-  std::cout << std::endl;
+  // std::cout << std::endl;
 }
 
 uint32_t crc(uint32_t value, uint32_t offset) {
@@ -114,7 +114,7 @@ public:
 
   void print_bits() override {
     uint32_t line{};
-    for (size_t b = 0; b < 8; b++) {
+    for (size_t b = 0; b < 16; b++) {
       line = 0;
       line |= static_cast<uint32_t>(pi) << 10;
       line |= crc(line, offset_A);
@@ -125,14 +125,14 @@ public:
       line |= static_cast<uint32_t>(tp) << 20;
       line |= static_cast<uint32_t>(pty) << 15;
       line |= static_cast<uint32_t>(ab) << 14;
-      // TODO: segment number
+      line |= static_cast<uint32_t>(b) << 10;
       line |= crc(line, offset_B);
       print_26_bits(line);
 
       line = 0;
       // radio text segment
-      uint8_t c0 = static_cast<uint8_t>(rt[(b * 2)]);
-      uint8_t c1 = static_cast<uint8_t>(rt[(b * 2) + 1]);
+      uint8_t c0 = static_cast<uint8_t>(rt[(b * 4)]);
+      uint8_t c1 = static_cast<uint8_t>(rt[(b * 4) + 1]);
       line |= static_cast<uint32_t>(c0) << 18;
       line |= static_cast<uint32_t>(c1) << 10;
       line |= crc(line, offset_C);
@@ -140,13 +140,12 @@ public:
 
       line = 0;
       // radio text segment
-      uint8_t c2 = static_cast<uint8_t>(rt[(b * 2) + 2]);
-      uint8_t c3 = static_cast<uint8_t>(rt[(b * 2) + 3]);
+      uint8_t c2 = static_cast<uint8_t>(rt[(b * 4) + 2]);
+      uint8_t c3 = static_cast<uint8_t>(rt[(b * 4) + 3]);
       line |= static_cast<uint32_t>(c2) << 18;
       line |= static_cast<uint32_t>(c3) << 10;
       line |= crc(line, offset_D);
       print_26_bits(line);
-      std::cout << std::endl;
     }
   }
 };
@@ -194,8 +193,12 @@ public:
       print_26_bits(line);
 
       line = 0;
-      line |= static_cast<uint32_t>(af1) << 18;
-      line |= static_cast<uint32_t>(af2) << 10;
+      if (b == 0) {
+        line |= static_cast<uint32_t>(af1) << 18;
+        line |= static_cast<uint32_t>(af2) << 10;
+      }
+      // line |= static_cast<uint32_t>(af1) << 18;
+      // line |= static_cast<uint32_t>(af2) << 10;
       line |= crc(line, offset_C);
       print_26_bits(line);
 
@@ -206,7 +209,7 @@ public:
       line |= static_cast<uint32_t>(c2) << 10;
       line |= crc(line, offset_D);
       print_26_bits(line);
-      std::cout << std::endl;
+      // std::cout << std::endl;
     }
   }
 };
@@ -220,6 +223,7 @@ void encode_group_0A(const argsMap &args) {
   std::cout << "Music/Speech (MS): " << args.at("-ms") << std::endl;
   std::cout << "Traffic Announcement (TA): " << args.at("-ta") << std::endl;
   std::cout << "Alternative Frequencies (AF): " << args.at("-af") << std::endl;
+  std::cout << "Program Service (PS): " << args.at("-ps") << std::endl;
   std::cout << std::endl;
 }
 
@@ -327,8 +331,8 @@ private:
 
   int parse_boolean(const std::string &flag_value, bool &value) {
     if (flag_value != "0" && flag_value != "1") {
-      std::cerr << "Error: Invalid value for boolean" << flag_value
-                << " (must be 0 or 1)\n";
+      std::cerr << "Error: Invalid value\"" << flag_value
+                << "\" (must be 0 or 1)\n";
       error = INVALID_VALUE;
       return -1;
     } else {
@@ -341,6 +345,13 @@ private:
     if (value.size() > length) {
       std::cerr << "Error: Invalid value " << value << " (must be at most "
                 << length << " characters, is " << value.size() << ")\n";
+      error = INVALID_VALUE;
+      return -1;
+    }
+    // check if the string is only [a-zA-Z0-9]*
+    if (!std::regex_match(value, std::regex("^[a-zA-Z0-9 ]*$"))) {
+      std::cerr << "Error: Invalid value " << value
+                << " (must be alphanumeric)\n";
       error = INVALID_VALUE;
       return -1;
     }
@@ -546,8 +557,15 @@ public:
 };
 
 int main(int argc, char *argv[]) {
+  std::string first_arg = argv[1];
+  if (first_arg == "--help") {
+    // TODO: more useful help message
+    std::cout << "Usage: " << argv[0] << " -g <GroupID> [other flags...]\n";
+    return 0;
+  }
   auto parser = ArgumentParser(argc, argv);
   if (parser.get_error() != ArgumentParser::NO_ERROR) {
+    // TODO: more useful help message
     std::cerr << "Usage: " << argv[0] << " -g <GroupID> [other flags...]\n";
     return 1;
   }
@@ -557,14 +575,14 @@ int main(int argc, char *argv[]) {
                   parser.get_ms(), parser.get_ta(), parser.get_af1(),
                   parser.get_af2(), parser.get_ps());
 
-    encode_group_0A(parser.get_args());
+    // encode_group_0A(parser.get_args());
     group.print_bits();
 
   } else if (parser.get_group_type() == GroupType::GROUP_2A) {
     Group2A group(parser.get_pi(), parser.get_pty(), parser.get_tp(),
                   parser.get_rt(), parser.get_ab());
 
-    encodeGroup2A(parser.get_args());
+    // encodeGroup2A(parser.get_args());
     group.print_bits();
   }
 
