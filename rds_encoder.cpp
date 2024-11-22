@@ -313,7 +313,6 @@ private:
       } else {
         af2 = f;
       }
-
       counter++;
     }
 
