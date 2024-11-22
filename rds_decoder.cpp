@@ -6,6 +6,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <bitset>
 
 enum GroupType { GROUP_0A, GROUP_2A, UNKNOWN };
 
