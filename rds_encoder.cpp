@@ -393,7 +393,7 @@ public:
           try {
             pi_int_tmp = std::stoi(args.at("-pi"));
             if (pi_int_tmp < 0 ||
-                pi_int_tmp > std::numeric_limits<uint16_t>::max()) {
+                pi_int_tmp > 65535) {
               std::cerr << "Error: PI value out of range (max value: "
                         << ((1 << 16) - 1) << std::endl;
               error = INVALID_VALUE;
