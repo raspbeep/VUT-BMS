@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <vector>
 #include <bitset>
+#include <algorithm>
 
 enum GroupType { GROUP_0A, GROUP_2A, UNKNOWN };
 
