@@ -58,7 +58,7 @@ void print_26_bits(uint32_t value) {
 uint32_t crc(uint32_t value, uint32_t offset) {
   std::bitset<26> and_mask = 0b1111111111;
   std::bitset<26> offset_bitset = offset;
-  std::bitset<26> and_check = 1<<25;
+  std::bitset<26> and_check = 1 << 25;
   std::bitset<26> val = value;
   for (int i = 15; i >= 0; i--) {
     if ((val & and_check) == 0) {
@@ -82,20 +82,6 @@ public:
         pty(program_type) {}
 
   virtual void print_bits() = 0;
-
-public:
-  std::array<ushort, 1> fill_boolean_arr(bool val) { return {val}; }
-  // 0001 0010 0011 0100
-  template <std::size_t N>
-  std::array<ushort, N> fill_n_bit_unsigned_arr(ushort val) {
-    std::array<ushort, N> result = {0};
-    for (size_t i = 0; i < N; i++) {
-      result[i] = val % 2;
-      val >>= 1;
-    }
-    std::reverse(std::begin(result), std::end(result));
-    return result;
-  }
 
 protected:
   /* Group Type Code + VC; 0A=0000, 2A=0010 */
@@ -124,10 +110,44 @@ public:
           const bool radio_text_a_b)
       : CommonGroup(group_type_code_2A, program_identification, traffic_program,
                     program_type),
-        rt(radio_text_string), ab(radio_text_a_b),
-        radio_text(radio_text_string) {}
+        rt(radio_text_string), ab(radio_text_a_b), radio_text(radio_text_string) {}
 
   void print_bits() override {
+    uint32_t line{};
+    for (size_t b = 0; b < 8; b++) {
+      line = 0;
+      line |= static_cast<uint32_t>(pi) << 10;
+      line |= crc(line, offset_A);
+      print_26_bits(line);
+
+      line = 0;
+      line |= static_cast<uint32_t>(gt_vc) << 21;
+      line |= static_cast<uint32_t>(tp) << 20;
+      line |= static_cast<uint32_t>(pty) << 15;
+      line |= static_cast<uint32_t>(ab) << 14;
+      // TODO: segment number
+      line |= crc(line, offset_B);
+      print_26_bits(line);
+
+      line = 0;
+      // radio text segment
+      uint8_t c0 = static_cast<uint8_t>(rt[(b * 2)]);
+      uint8_t c1 = static_cast<uint8_t>(rt[(b * 2) + 1]);
+      line |= static_cast<uint32_t>(c0) << 18;
+      line |= static_cast<uint32_t>(c1) << 10;
+      line |= crc(line, offset_C);
+      print_26_bits(line);
+
+      line = 0;
+      // radio text segment
+      uint8_t c2 = static_cast<uint8_t>(rt[(b * 2) + 2]);
+      uint8_t c3 = static_cast<uint8_t>(rt[(b * 2) + 3]);
+      line |= static_cast<uint32_t>(c2) << 18;
+      line |= static_cast<uint32_t>(c3) << 10;
+      line |= crc(line, offset_D);
+      print_26_bits(line);
+      std::cout << std::endl;
+    }
   }
 };
 
@@ -159,30 +179,31 @@ public:
     uint32_t line{};
     for (size_t b = 0; b < 4; b++) {
       line = 0;
-      line |= (pi << 10);
+      line |= static_cast<uint32_t>(pi) << 10;
       line |= crc(line, offset_A);
       print_26_bits(line);
 
       line = 0;
       line |= static_cast<uint32_t>(gt_vc) << 21;
-      line |= static_cast<uint32_t>(tp)    << 20;
-      line |= static_cast<uint32_t>(pty)   << 15;
-      line |= static_cast<uint32_t>(ta)    << 14;
-      line |= static_cast<uint32_t>(ms)    << 13;
+      line |= static_cast<uint32_t>(tp) << 20;
+      line |= static_cast<uint32_t>(pty) << 15;
+      line |= static_cast<uint32_t>(ta) << 14;
+      line |= static_cast<uint32_t>(ms) << 13;
+      line |= static_cast<uint32_t>(b) << 10;
       line |= crc(line, offset_B);
       print_26_bits(line);
 
       line = 0;
-      line |= static_cast<uint32_t>(af1)   << 18;
-      line |= static_cast<uint32_t>(af2)   << 10;
+      line |= static_cast<uint32_t>(af1) << 18;
+      line |= static_cast<uint32_t>(af2) << 10;
       line |= crc(line, offset_C);
       print_26_bits(line);
 
       line = 0;
-      uint8_t c1 = ps[(b * 2)];
-      uint8_t c2 = ps[(b * 2) + 1];
-      line |= static_cast<uint32_t>(c1)    << 18;
-      line |= static_cast<uint32_t>(c2)    << 10;
+      uint8_t c1 = static_cast<uint8_t>(ps[(b * 2)]);
+      uint8_t c2 = static_cast<uint8_t>(ps[(b * 2) + 1]);
+      line |= static_cast<uint32_t>(c1) << 18;
+      line |= static_cast<uint32_t>(c2) << 10;
       line |= crc(line, offset_D);
       print_26_bits(line);
       std::cout << std::endl;
@@ -286,7 +307,7 @@ private:
       }
 
       // convert to 8 bit format as per RDS standard
-      uint8_t f = frequency_int - 875;
+      uint8_t f = static_cast<uint8_t>(frequency_int - 875);
       if (counter == 0) {
         af1 = f;
       } else {
@@ -317,8 +338,7 @@ private:
     }
   }
 
-  int parse_string(const std::string &value, std::string &result, size_t length,
-                   bool pad) {
+  int parse_string(const std::string &value, std::string &result, size_t length) {
     if (value.size() > length) {
       std::cerr << "Error: Invalid value " << value << " (must be at most "
                 << length << " characters, is " << value.size() << ")\n";
@@ -327,16 +347,13 @@ private:
     }
     result = value;
     // add padding to full length if needed
-    if (pad) {
-      result.append(length - value.size(), ' ');
-    }
+    result.append(length - value.size(), ' ');
     return 0;
   }
 
 public:
   ArgumentParser(int argc, char *argv[]) : error(NO_ERROR) {
-    if (argc < 3) {
-      std::cerr << "Usage: " << argv[0] << " -g <GroupID> [other flags...]\n";
+    if (argc != 13 && argc != 17) {
       error = ARGUMENT_COUNT;
     }
     std::string groupID;
@@ -371,7 +388,7 @@ public:
             if (pi_int_tmp < 0 ||
                 pi_int_tmp > std::numeric_limits<uint16_t>::max()) {
               std::cerr << "Error: PI value out of range (max value: "
-                        << ((1 << 16) - 1) << ")" << std::endl;
+                        << ((1 << 16) - 1) << std::endl;
               error = INVALID_VALUE;
               break;
             } else {
@@ -389,7 +406,7 @@ public:
             pty_int_tmp = std::stoi(args.at("-pty"));
             if (pty_int_tmp < 0 || pty_int_tmp > 31) {
               std::cerr << "Error: PTY value out of range (max value: "
-                        << ((1 << 5) - 1) << ")" << std::endl;
+                        << ((1 << 5) - 1) << std::endl;
               error = INVALID_VALUE;
             } else {
               pty = static_cast<uint8_t>(pty_int_tmp);
@@ -417,11 +434,11 @@ public:
           parse_frequencies();
         } else if (flag == "-ps") {
           flags |= PS_FLAG;
-          if (parse_string(args.at("-ps"), ps, 8, true))
+          if (parse_string(args.at("-ps"), ps, 8))
             break;
         } else if (flag == "-rt") {
           flags |= RT_FLAG;
-          if (parse_string(args.at("-rt"), radio_text, 64, false))
+          if (parse_string(args.at("-rt"), radio_text, 64))
             break;
         } else if (flag == "-ab") {
           flags |= AB_FLAG;
