@@ -1,2 +1,5 @@
 build/
-encoder.dSYM/
+rds_encoder
+rds_encoder.o
+rds_decoder
+rds_decoder.o

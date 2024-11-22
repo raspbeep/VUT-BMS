@@ -49,10 +49,7 @@ void print_lower_5_bits(uint8_t value) {
 void print_26_bits(uint32_t value) {
   for (int i = 25; i >= 0; --i) {
     std::cout << ((value >> i) & 1);
-    // if (i == 10)
-    //   std::cout << " ";
   }
-  // std::cout << std::endl;
 }
 
 uint32_t crc(uint32_t value, uint32_t offset) {
@@ -369,7 +366,7 @@ public:
     std::string groupID;
     unsigned int flags = 0;
     // Iterate over command-line arguments and parse flags
-    for (size_t i = 1; i < argc; ++i) {
+    for (int i = 1; i < argc; ++i) {
       std::string flag = argv[i];
       if (flag == "-g") {
         groupID = argv[++i];
@@ -557,6 +554,10 @@ public:
 };
 
 int main(int argc, char *argv[]) {
+  if (argc == 1) {
+    std::cerr << "Usage: " << argv[0] << " -g <GroupID> [other flags...]\n";
+    return 1;
+  }
   std::string first_arg = argv[1];
   if (first_arg == "--help") {
     // TODO: more useful help message
