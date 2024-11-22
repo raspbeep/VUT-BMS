@@ -1,5 +1,0 @@
----
-triple:          'arm64-apple-darwin'
-binary-path:     '/Users/pavel/bms/rds_encoder'
-relocations:     []
-...
