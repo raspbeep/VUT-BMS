@@ -53,20 +53,6 @@ const uint32_t c2_mask = 261120;
  */
 GroupType get_group(uint32_t block);
 
-/**
- * Sorts groups into a new vector with empty places for absent ones
- * @param data Vector containing all received data
- * @returns sorted data of 16 groups (4 blocks each)
- */
-std::vector<uint32_t> sort_2A_data(std::vector<uint32_t> data);
-
-/**
- * Sorts groups into a new vector with empty places for absent ones
- * @param data Vector containing all received data
- * @returns sorted data of 4 groups (4 blocks each)
- */
-std::vector<uint32_t> sort_0A_data(std::vector<uint32_t> data);
-
 /**  */
 /**
  * Formats a frequency value into a human-readable string.
@@ -98,6 +84,8 @@ public:
   /** Constructor that parses command-line arguments. */
   ArgumentParser(int argc, char *argv[]);
 
+  int sort_blocks();
+
   /** Returns the error status of the parser. */
   Error get_error() { return error; }
 
@@ -115,8 +103,6 @@ public:
 
   /** Virtual function to print group-specific information. */
   virtual void print_info() = 0;
-
-  int sort_blocks();
 
   std::vector<uint32_t> mData; // Data blocks for the group
 protected:
@@ -139,6 +125,11 @@ public:
   /** Constructor initializing with data blocks. */
   Group2A(std::vector<uint32_t> data) : CommonGroup(data), rt(64, ' ') {}
 
+  /**
+   * Sorts groups into a new vector with empty places for absent ones
+   * @param data Vector containing all received data
+   * @returns sorted data of 16 groups (4 blocks each)
+   */
   void sort_2A_data(); 
 
   /** Prints information specific to Group 2A. */
@@ -165,6 +156,11 @@ public:
   /** Constructor initializing with data blocks. */
   Group0A(std::vector<uint32_t> data) : CommonGroup(data), ps(8, ' ') {}
 
+  /**
+   * Sorts groups into a new vector with empty places for absent ones
+   * @param data Vector containing all received data
+   * @returns sorted data of 4 groups (4 blocks each)
+   */
   void sort_0A_data();
 
   /** Prints information specific to Group 0A. */

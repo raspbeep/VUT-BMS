@@ -59,25 +59,25 @@ int get_block_addr(uint32_t block) {
   return -1;
 }
 
-int sort_blocks(std::vector<uint32_t>& data) {
-  std::vector<uint32_t> output_data(data.size());
+int ArgumentParser::sort_blocks() {
+  std::vector<uint32_t> output_data(blocks.size());
   
   int block_addr{};
 
   // iterate over groups
-  for (int i = 0; i < static_cast<int>(data.size()) / 4; i ++) {
+  for (int i = 0; i < static_cast<int>(blocks.size()) / 4; i ++) {
     // skip empty groups
-    if (is_group_empty(data, i)) continue;
+    if (is_group_empty(blocks, i)) continue;
     uint32_t block;
     for (int j = 0; j < 4; j++) {
-      block = data[i * 4 + j];
+      block = blocks[i * 4 + j];
       block_addr = get_block_addr(block);
       // if no CRC passes return error
       if (block_addr == -1) return 2;
       output_data[i * 4 + block_addr] = block;
     }
   }
-  data = output_data;
+  blocks = output_data;
   return 0;
 }
 
@@ -390,29 +390,30 @@ int main(int argc, char *argv[]) {
   if (parser.get_error() != ArgumentParser::NO_ERROR) {
     return 1;
   }
-
-  int sort_res = sort_blocks(parser.blocks);
+  auto x = parser.get_blocks();
+  int sort_res = parser.sort_blocks();
   if (sort_res != 0) return sort_res;
 
   // check the group type from the first block
-  GroupType groupType = get_group(parser.blocks[1]);
-  if (groupType == GROUP_0A) {
-    Group0A group0A(parser.blocks);
-    group0A.sort_0A_data();
-    int ret = group0A.parse();
-    if (ret != 0) return ret;
+  // GroupType groupType = get_group(parser.get_blocks()[1]);
+  // if (groupType == GROUP_0A) {
     
-    group0A.print_info();
+    Group0A group0A(x);
+  //   group0A.sort_0A_data();
+  //   int ret = group0A.parse();
+  //   if (ret != 0) return ret;
+    
+  //   group0A.print_info();
 
-  } else if (groupType == GROUP_2A) {
-    Group2A group2A(parser.get_blocks());
-    group2A.sort_2A_data();
-    int ret = group2A.parse();
-    if (ret != 0) return ret;
-    group2A.print_info();
-  } else {
-    std::cout << "Unsupported group type" << std::endl;
-    return 1;
-  }
+  // } else if (groupType == GROUP_2A) {
+  //   Group2A group2A(parser.get_blocks());
+  //   group2A.sort_2A_data();
+  //   int ret = group2A.parse();
+  //   if (ret != 0) return ret;
+  //   group2A.print_info();
+  // } else {
+  //   std::cout << "Unsupported group type" << std::endl;
+  //   return 1;
+  // }
   return 0;
 }
