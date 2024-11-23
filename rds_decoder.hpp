@@ -74,9 +74,9 @@ public:
     INVALID_FLAG,   /**< Invalid flag provided */
     INVALID_VALUE   /**< Invalid binary string value */
   };
-  std::vector<uint32_t> blocks;    /**< Parsed blocks of data */
 
 private:
+  std::vector<uint32_t> blocks;    /**< Parsed blocks of data */
   Error error;                     /**< Stores parsing errors */
   std::string binary_string_value; /**< Binary string input from arguments */
 
@@ -123,7 +123,7 @@ private:
 
 public:
   /** Constructor initializing with data blocks. */
-  Group2A(std::vector<uint32_t> data) : CommonGroup(data), rt(64, ' ') {}
+  Group2A(std::vector<uint32_t> data) : CommonGroup(data), rt(64, '_') {}
 
   /**
    * Sorts groups into a new vector with empty places for absent ones
@@ -154,7 +154,7 @@ private:
 
 public:
   /** Constructor initializing with data blocks. */
-  Group0A(std::vector<uint32_t> data) : CommonGroup(data), ps(8, ' ') {}
+  Group0A(std::vector<uint32_t> data) : CommonGroup(data), ps(8, '_') {}
 
   /**
    * Sorts groups into a new vector with empty places for absent ones

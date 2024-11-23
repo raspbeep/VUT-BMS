@@ -390,30 +390,29 @@ int main(int argc, char *argv[]) {
   if (parser.get_error() != ArgumentParser::NO_ERROR) {
     return 1;
   }
-  auto x = parser.get_blocks();
+
   int sort_res = parser.sort_blocks();
   if (sort_res != 0) return sort_res;
 
   // check the group type from the first block
-  // GroupType groupType = get_group(parser.get_blocks()[1]);
-  // if (groupType == GROUP_0A) {
+  GroupType groupType = get_group(parser.get_blocks()[1]);
+  if (groupType == GROUP_0A) {
+    Group0A group0A(parser.get_blocks());
+    group0A.sort_0A_data();
+    int ret = group0A.parse();
+    if (ret != 0) return ret;
     
-    Group0A group0A(x);
-  //   group0A.sort_0A_data();
-  //   int ret = group0A.parse();
-  //   if (ret != 0) return ret;
-    
-  //   group0A.print_info();
+    group0A.print_info();
 
-  // } else if (groupType == GROUP_2A) {
-  //   Group2A group2A(parser.get_blocks());
-  //   group2A.sort_2A_data();
-  //   int ret = group2A.parse();
-  //   if (ret != 0) return ret;
-  //   group2A.print_info();
-  // } else {
-  //   std::cout << "Unsupported group type" << std::endl;
-  //   return 1;
-  // }
+  } else if (groupType == GROUP_2A) {
+    Group2A group2A(parser.get_blocks());
+    group2A.sort_2A_data();
+    int ret = group2A.parse();
+    if (ret != 0) return ret;
+    group2A.print_info();
+  } else {
+    std::cout << "Unsupported group type" << std::endl;
+    return 1;
+  }
   return 0;
 }
