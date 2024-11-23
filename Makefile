@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++14 -Wall -Wextra -Werror -pedantic -O3
+CXXFLAGS = -std=c++14 -Wall -Wextra -Werror -pedantic -g
 
 .PHONY: all clean rds_encoder rds_decoder zip 
 

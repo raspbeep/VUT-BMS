@@ -267,8 +267,8 @@ ArgumentParser::ArgumentParser(int argc, char *argv[]) : error(NO_ERROR) {
           break;
       } else {
         std::cerr << "Error: Unknown flag " << flag << "\n";
-        break;
         error = INVALID_FLAG;
+        break;
       }
     } else {
       std::cerr << "Error: Missing value for " << flag << "\n";
@@ -352,7 +352,6 @@ int main(int argc, char *argv[]) {
   }
   auto parser = ArgumentParser(argc, argv);
   if (parser.error != ArgumentParser::NO_ERROR) {
-    std::cout << helpMessage;
     return 1;
   }
 

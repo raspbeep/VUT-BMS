@@ -31,10 +31,98 @@ GroupType get_group(uint32_t block) {
   }
 }
 
+bool is_group_empty(std::vector<uint32_t>& data, int idx) {
+  // unpack each block and check if they are zero
+  uint32_t b0 = data[idx * 4];
+  uint32_t b1 = data[idx * 4 + 1];
+  uint32_t b2 = data[idx * 4 + 2];
+  uint32_t b3 = data[idx * 4 + 3];
+
+  if (!b0 && !b1 && !b2 && !b3) return true;
+  return false;
+}
+
+int get_block_addr(uint32_t block) {
+  uint32_t check_crc{};
+  check_crc = crc((block & inv_crc_mask), offset_A);
+  if (check_crc == (block & crc_mask)) return 0;
+
+  check_crc = crc((block & inv_crc_mask), offset_B);
+  if (check_crc == (block & crc_mask)) return 1;
+
+  check_crc = crc((block & inv_crc_mask), offset_C);
+  if (check_crc == (block & crc_mask)) return 2;
+
+  check_crc = crc((block & inv_crc_mask), offset_D);
+  if (check_crc == (block & crc_mask)) return 3;
+
+  return -1;
+}
+
+int sort_blocks(std::vector<uint32_t>& data) {
+  std::vector<uint32_t> output_data(data.size());
+  
+  int block_addr{};
+
+  // iterate over groups
+  for (int i = 0; i < static_cast<int>(data.size()) / 4; i ++) {
+    // skip empty groups
+    if (is_group_empty(data, i)) continue;
+    uint32_t block;
+    for (int j = 0; j < 4; j++) {
+      block = data[i * 4 + j];
+      block_addr = get_block_addr(block);
+      // if no CRC passes return error
+      if (block_addr == -1) return 2;
+      output_data[i * 4 + block_addr] = block;
+    }
+  }
+  data = output_data;
+  return 0;
+}
+
+void Group2A::sort_2A_data() {
+  // 16 groups of 4 blocks, initiated to 0
+  std::vector<uint32_t> output_data(16 * 4);
+  
+  // iterate over 4 groups
+  for (int i = 0; i <  static_cast<int>(mData.size()) / 4; i++) {
+    // look into the 2nd block of each group
+    uint32_t second_block = mData[i * 4 + 1];
+    uint8_t segment_address = (second_block & segment_mask_2A) >> 10;
+    // assign to the correct address in the output
+    output_data[segment_address * 4] = mData[i * 4];
+    output_data[segment_address * 4 + 1] = mData[i * 4 + 1];
+    output_data[segment_address * 4 + 2] = mData[i * 4 + 2];
+    output_data[segment_address * 4 + 3] = mData[i * 4 + 3];
+  }
+
+  mData = output_data;
+}
+
+void Group0A::sort_0A_data() {
+  // 4 groups of 4 blocks, initiated to 0
+  std::vector<uint32_t> output_data(4 * 4);
+  
+  // iterate over groups (each group has 4 blocks)
+  for (int i = 0; i < static_cast<int>(mData.size()) / 4; i++) {
+    // look into the 2nd block of each group
+    uint32_t second_block = mData[i * 4 + 1];
+    uint8_t segment_address = (second_block & segment_mask_0A) >> 10;
+    // assign to the correct address in the output
+    output_data[segment_address * 4] = mData[i * 4];
+    output_data[segment_address * 4 + 1] = mData[i * 4 + 1];
+    output_data[segment_address * 4 + 2] = mData[i * 4 + 2];
+    output_data[segment_address * 4 + 3] = mData[i * 4 + 3];
+  }
+
+  mData = output_data;
+}
+
 ArgumentParser::ArgumentParser(int argc, char *argv[]) : error(NO_ERROR) {
   if (argc != 3) {
     error = ARGUMENT_COUNT;
-    std::cout << "./rds_decoder -b BINARY_STRING" << std::endl;
+    std::cout << helpMessage;
     return;
   }
 
@@ -44,8 +132,8 @@ ArgumentParser::ArgumentParser(int argc, char *argv[]) : error(NO_ERROR) {
     return;
   }
   binary_string_value = argv[2];
-  if (binary_string_value.size() % 104 != 0) {
-    std::cout << "Invalid length of binary value " << binary_string_value.size()
+  if (binary_string_value.size() % 104 != 0 || !binary_string_value.size()) {
+    std::cout << "Invalid length of binary value (length: " << binary_string_value.size() << ")"
               << std::endl;
     error = INVALID_VALUE;
     return;
@@ -89,21 +177,7 @@ std::string trim_space_end(std::string input) {
   return output;
 }
 
-void Group2A::print_info() {
-  std::cout << "PI: " << pi << std::endl;
-  std::cout << "GT: " << "2A" << std::endl;
-  std::cout << "TP: " << tp << std::endl;
-  std::cout << "PTY: " << (int)pty << std::endl;
-  std::cout << "A/B: " << ab << std::endl;
-  std::cout << "RT: \"" << trim_space_end(rt) << "\"" << std::endl;
-}
-
 int Group2A::parse() {
-  if (mData.size() != 64) {
-    std::cout << "Invalid number of blocks for group 2A" << std::endl;
-    return 1;
-  }
-
   uint16_t tmp_pi{};
   uint8_t tmp_gt_vc{};
   bool tmp_tp{};
@@ -117,59 +191,43 @@ int Group2A::parse() {
   uint8_t tmp_c4{};
 
   uint32_t block{};
-  uint32_t check_crc{};
+  bool first_valid_group = true;
 
   for (int group = 0; group < 16; group++) {
+    // if the group is empty, do not process it
+    if (is_group_empty(mData, group)) continue;
+
+    // block 0
     block = mData[static_cast<size_t>(group) * 4];
-    check_crc = crc((block & inv_crc_mask), offset_A);
-    if (check_crc != (block & crc_mask)) {
-      std::cout << "CRC check failed for group: " << group << " block 0"
-                << std::endl;
-      return 2;
-    }
     tmp_pi = (block & pi_mask) >> 10;
 
+    // block 1
     block = mData[static_cast<size_t>(group) * 4 + 1];
-    check_crc = crc((block & inv_crc_mask), offset_B);
-    if (check_crc != (block & crc_mask)) {
-      std::cout << "CRC check failed for group: " << group << " block 1"
-                << std::endl;
-      return 2;
-    }
     tmp_gt_vc = (block & gt_vc_mask) >> 21;
     tmp_tp = (block & tp_mask) >> 20;
     tmp_pty = (block & pty_mask) >> 15;
     tmp_ab = (block & ta_mask) >> 14;
-    tmp_segment = (block & segment_mask) >> 10;
+    tmp_segment = (block & segment_mask_2A) >> 10;
 
+    // block 2
     block = mData[static_cast<size_t>(group) * 4 + 2];
-    check_crc = crc((block & inv_crc_mask), offset_C);
-    if (check_crc != (block & crc_mask)) {
-      std::cout << "CRC check failed for group: " << group << " block 2"
-                << std::endl;
-      return 2;
-    }
     tmp_c1 = (block & c1_mask) >> 18;
     tmp_c2 = (block & c2_mask) >> 10;
+    // fill the characters into the string
+    rt[group * 4] = static_cast<char>(tmp_c1);
+    rt[group * 4 + 1] = static_cast<char>(tmp_c2);
 
+    // block 3
     block = mData[static_cast<size_t>(group) * 4 + 3];
-    check_crc = crc((block & inv_crc_mask), offset_D);
-    if (check_crc != (block & crc_mask)) {
-      std::cout << "CRC check failed for group: " << group << " block 3"
-                << std::endl;
-      return 2;
-    }
     tmp_c3 = (block & c1_mask) >> 18;
     tmp_c4 = (block & c2_mask) >> 10;
-
-    // append the characters to the string
-    rt.append(1, static_cast<char>(tmp_c1));
-    rt.append(1, static_cast<char>(tmp_c2));
-    rt.append(1, static_cast<char>(tmp_c3));
-    rt.append(1, static_cast<char>(tmp_c4));
+    // fill the characters into the string
+    rt[group * 4 + 2] = static_cast<char>(tmp_c3);
+    rt[group * 4 + 3] = static_cast<char>(tmp_c4);
 
     // first group, save values
-    if (group == 0) {
+    if (first_valid_group) {
+      first_valid_group = false;
       pi = tmp_pi;
       gt_vc = tmp_gt_vc;
       tp = tmp_tp;
@@ -201,25 +259,16 @@ int Group2A::parse() {
   return 0;
 }
 
-void Group0A::print_info() {
+void Group2A::print_info() {
   std::cout << "PI: " << pi << std::endl;
-  std::cout << "GT: " << "0A" << std::endl;
+  std::cout << "GT: " << "2A" << std::endl;
   std::cout << "TP: " << tp << std::endl;
   std::cout << "PTY: " << (int)pty << std::endl;
-  std::cout << "TA: " << (ta ? "Active" : "Inactive") << std::endl;
-  std::cout << "MS: " << (ms ? "Music" : "Speech") << std::endl;
-  std::cout << "DI: " << (int)di << std::endl;
-  std::cout << "AF: " << format_frequency(af1) << ", " << format_frequency(af2)
-            << std::endl;
-  std::cout << "PS: \"" << trim_space_end(ps) << "\"" << std::endl;
+  std::cout << "A/B: " << ab << std::endl;
+  std::cout << "RT: \"" << trim_space_end(rt) << "\"" << std::endl;
 }
 
 int Group0A::parse() {
-  if (mData.size() != 16) {
-    std::cout << "Invalid number of blocks for group 0A" << std::endl;
-    return 1;
-  }
-
   uint16_t tmp_pi{};
   uint8_t tmp_gt_vc{};
   bool tmp_tp{};
@@ -230,61 +279,47 @@ int Group0A::parse() {
   uint8_t tmp_segment{};
   uint32_t tmp_af1{};
   uint32_t tmp_af2{};
-
   uint8_t tmp_c1{};
   uint8_t tmp_c2{};
+  uint32_t block{};
 
+  bool first_valid_group = true;
+
+  // iterate over 4 groups, some might be empty
   for (int group = 0; group < 4; group++) {
-    uint32_t block0 = mData[static_cast<size_t>(group) * 4];
-    uint32_t check_crc0 = crc((block0 & inv_crc_mask), offset_A);
-    if (check_crc0 != (block0 & crc_mask)) {
-      std::cout << "CRC check failed for group: " << group << " block 0"
-                << std::endl;
-      return 2;
-    }
-    tmp_pi = (block0 & pi_mask) >> 10;
+    // if the group is empty, do not process it
+    if (is_group_empty(mData, group)) continue;
 
-    uint32_t block1 = mData[static_cast<size_t>(group) * 4 + 1];
-    uint32_t check_crc1 = crc((block1 & inv_crc_mask), offset_B);
-    if (check_crc1 != (block1 & crc_mask)) {
-      std::cout << "CRC check failed for group: " << group << " block 1"
-                << std::endl;
-      return 2;
-    }
-    tmp_gt_vc = (block1 & gt_vc_mask) >> 21;
-    tmp_tp = (block1 & tp_mask) >> 20;
-    tmp_pty = (block1 & pty_mask) >> 15;
-    tmp_ta = (block1 & ta_mask) >> 14;
-    tmp_ms = (block1 & ms_mask) >> 13;
-    tmp_di = (block1 & di_mask) >> 12;
-    tmp_segment = (block1 & segment_mask) >> 10;
+    // block 0
+    block = mData[static_cast<size_t>(group) * 4];
+    tmp_pi = (block & pi_mask) >> 10;
 
-    uint32_t block2 = mData[static_cast<size_t>(group) * 4 + 2];
-    uint32_t check_crc2 = crc((block2 & inv_crc_mask), offset_C);
-    if (check_crc2 != (block2 & crc_mask)) {
-      std::cout << "CRC check failed for group: " << group << " block 2"
-                << std::endl;
-      return 2;
-    }
-    tmp_af1 = (block2 & af1_mask) >> 18;
-    tmp_af2 = (block2 & af2_mask) >> 10;
+    // block 1
+    block = mData[static_cast<size_t>(group) * 4 + 1];
+    tmp_gt_vc = (block & gt_vc_mask) >> 21;
+    tmp_tp = (block & tp_mask) >> 20;
+    tmp_pty = (block & pty_mask) >> 15;
+    tmp_ta = (block & ta_mask) >> 14;
+    tmp_ms = (block & ms_mask) >> 13;
+    tmp_di = (block & di_mask) >> 12;
+    tmp_segment = (block & segment_mask_0A) >> 10;
 
-    uint32_t block3 = mData[static_cast<size_t>(group) * 4 + 3];
-    uint32_t check_crc3 = crc((block3 & inv_crc_mask), offset_D);
-    if (check_crc3 != (block3 & crc_mask)) {
-      std::cout << "CRC check failed for group: " << group << " block 3"
-                << std::endl;
-      return 2;
-    }
-    tmp_c1 = (block3 & c1_mask) >> 18;
-    tmp_c2 = (block3 & c2_mask) >> 10;
+    // block 2
+    block = mData[static_cast<size_t>(group) * 4 + 2];
+    tmp_af1 = (block & af1_mask) >> 18;
+    tmp_af2 = (block & af2_mask) >> 10;
 
-    // append the characters to the string
-    ps.append(1, static_cast<char>(tmp_c1));
-    ps.append(1, static_cast<char>(tmp_c2));
+    // block 3
+    block = mData[static_cast<size_t>(group) * 4 + 3];
+    tmp_c1 = (block & c1_mask) >> 18;
+    tmp_c2 = (block & c2_mask) >> 10;
+    // fill the characters into the string
+    ps[group * 2] = static_cast<char>(tmp_c1);
+    ps[group * 2 + 1] = static_cast<char>(tmp_c2);
 
     // first group, save values
-    if (group == 0) {
+    if (first_valid_group) {
+      first_valid_group = false;
       pi = tmp_pi;
       gt_vc = tmp_gt_vc;
       tp = tmp_tp;
@@ -298,33 +333,46 @@ int Group0A::parse() {
     } else {
       // compare the values with the saved ones
       if (tmp_pi != pi) {
-        std::cout << "Inconsistent PI value" << std::endl;
+        std::cout << "Inconsistent PI value across blocks" << std::endl;
         return 1;
       }
       if (tmp_gt_vc != gt_vc) {
-        std::cout << "Inconsistent Group Type or Version Code value"
+        std::cout << "Inconsistent Group Type or Version Code value across blocks"
                   << std::endl;
         return 1;
       }
       if (tmp_tp != tp) {
-        std::cout << "Inconsistent TP value" << std::endl;
+        std::cout << "Inconsistent TP value across blocks" << std::endl;
         return 1;
       }
       if (tmp_pty != pty) {
-        std::cout << "Inconsistent PTY value" << std::endl;
+        std::cout << "Inconsistent PTY value across blocks" << std::endl;
         return 1;
       }
       if (tmp_ta != ta) {
-        std::cout << "Inconsistent TA value" << std::endl;
+        std::cout << "Inconsistent TA value across blocks" << std::endl;
         return 1;
       }
       if (tmp_ms != ms) {
-        std::cout << "Inconsistent MS value" << std::endl;
+        std::cout << "Inconsistent MS value across blocks" << std::endl;
         return 1;
       }
     }
   }
   return 0;
+}
+
+void Group0A::print_info() {
+  std::cout << "PI: " << pi << std::endl;
+  std::cout << "GT: " << "0A" << std::endl;
+  std::cout << "TP: " << tp << std::endl;
+  std::cout << "PTY: " << (int)pty << std::endl;
+  std::cout << "TA: " << (ta ? "Active" : "Inactive") << std::endl;
+  std::cout << "MS: " << (ms ? "Music" : "Speech") << std::endl;
+  std::cout << "DI: " << (int)di << std::endl;
+  std::cout << "AF: " << format_frequency(af1) << ", " << format_frequency(af2)
+            << std::endl;
+  std::cout << "PS: \"" << trim_space_end(ps) << "\"" << std::endl;
 }
 
 int main(int argc, char *argv[]) {
@@ -343,21 +391,24 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  // check the group type from the first block
-  GroupType groupType = get_group(parser.get_blocks()[1]);
+  int sort_res = sort_blocks(parser.blocks);
+  if (sort_res != 0) return sort_res;
 
+  // check the group type from the first block
+  GroupType groupType = get_group(parser.blocks[1]);
   if (groupType == GROUP_0A) {
-    Group0A group0A(parser.get_blocks());
+    Group0A group0A(parser.blocks);
+    group0A.sort_0A_data();
     int ret = group0A.parse();
-    if (ret != 0)
-      return ret;
+    if (ret != 0) return ret;
+    
     group0A.print_info();
 
   } else if (groupType == GROUP_2A) {
     Group2A group2A(parser.get_blocks());
+    group2A.sort_2A_data();
     int ret = group2A.parse();
-    if (ret != 0)
-      return ret;
+    if (ret != 0) return ret;
     group2A.print_info();
   } else {
     std::cout << "Unsupported group type" << std::endl;

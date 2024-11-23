@@ -40,7 +40,8 @@ const uint32_t pty_mask = 1015808;
 const uint32_t ta_mask = 16384;
 const uint32_t ms_mask = 8192;
 const uint32_t di_mask = 4096;
-const uint32_t segment_mask = 3072;
+const uint32_t segment_mask_0A = 3072;
+const uint32_t segment_mask_2A = 15360;
 const uint32_t af1_mask = 66846720;
 const uint32_t af2_mask = 261120;
 const uint32_t c1_mask = 66846720;
@@ -51,6 +52,20 @@ const uint32_t c2_mask = 261120;
  * @param block The 32-bit block value
  */
 GroupType get_group(uint32_t block);
+
+/**
+ * Sorts groups into a new vector with empty places for absent ones
+ * @param data Vector containing all received data
+ * @returns sorted data of 16 groups (4 blocks each)
+ */
+std::vector<uint32_t> sort_2A_data(std::vector<uint32_t> data);
+
+/**
+ * Sorts groups into a new vector with empty places for absent ones
+ * @param data Vector containing all received data
+ * @returns sorted data of 4 groups (4 blocks each)
+ */
+std::vector<uint32_t> sort_0A_data(std::vector<uint32_t> data);
 
 /**  */
 /**
@@ -73,11 +88,11 @@ public:
     INVALID_FLAG,   /**< Invalid flag provided */
     INVALID_VALUE   /**< Invalid binary string value */
   };
+  std::vector<uint32_t> blocks;    /**< Parsed blocks of data */
 
 private:
   Error error;                     /**< Stores parsing errors */
   std::string binary_string_value; /**< Binary string input from arguments */
-  std::vector<uint32_t> blocks;    /**< Parsed blocks of data */
 
 public:
   /** Constructor that parses command-line arguments. */
@@ -101,9 +116,9 @@ public:
   /** Virtual function to print group-specific information. */
   virtual void print_info() = 0;
 
-protected:
-  std::vector<uint32_t> mData; // Data blocks for the group
+  int sort_blocks();
 
+  std::vector<uint32_t> mData; // Data blocks for the group
 protected:
   uint8_t gt_vc; /**< Group Type Code + Version Code */
   uint16_t pi;   /**< Program Identification code */
@@ -122,7 +137,9 @@ private:
 
 public:
   /** Constructor initializing with data blocks. */
-  Group2A(std::vector<uint32_t> data) : CommonGroup(data) {}
+  Group2A(std::vector<uint32_t> data) : CommonGroup(data), rt(64, ' ') {}
+
+  void sort_2A_data(); 
 
   /** Prints information specific to Group 2A. */
   void print_info() override;
@@ -142,11 +159,13 @@ private:
   uint8_t segment; /**< Segment address code */
   uint32_t af1;    /**< Alternative Frequency #1 */
   uint32_t af2;    /**< Alternative Frequency #2 */
-  std::string ps;  /**< Program Service name */
+  std::string ps;  /**< Program Service name (up to 8 characters) */
 
 public:
   /** Constructor initializing with data blocks. */
-  Group0A(std::vector<uint32_t> data) : CommonGroup(data) {}
+  Group0A(std::vector<uint32_t> data) : CommonGroup(data), ps(8, ' ') {}
+
+  void sort_0A_data();
 
   /** Prints information specific to Group 0A. */
   void print_info() override;
