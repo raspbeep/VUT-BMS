@@ -7,10 +7,10 @@ CXXFLAGS = -std=c++14 -Wall -Wextra -Werror -pedantic -O3
 all: rds_encoder rds_decoder
 
 rds_encoder:
-	$(CXX) $(CXXFLAGS) -o rds_encoder rds_encoder.cpp
+	$(CXX) $(CXXFLAGS) -o rds_encoder rds_encoder.cpp common.cpp
 
 rds_decoder:
-	$(CXX) $(CXXFLAGS) -o rds_decoder rds_decoder.cpp
+	$(CXX) $(CXXFLAGS) -o rds_decoder rds_decoder.cpp common.cpp
 
 clean:
 	rm -f *.o rds_encoder rds_decoder
