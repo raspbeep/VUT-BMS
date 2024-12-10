@@ -55,7 +55,6 @@ const uint32_t inv_crc_mask = 67107840;               /**< Inverse CRC mask */
  */
 GroupType get_group(uint32_t block);
 
-/**  */
 /**
  * Formats a frequency value into a human-readable string.
  * @param frequency The 32-bit frequency value.
@@ -165,9 +164,26 @@ public:
    */
   void sort_0A_data();
 
-  /** Prints information specific to Group 0A. */
+  /**
+   * @brief Prints the information contained in the Group0A object.
+   * 
+   * This function outputs various fields of the Group0A object to the standard output,
+   * including Program Identification (PI), Group Type (GT), Traffic Program (TP), 
+   * Program Type (PTY), Traffic Announcement (TA), Music/Speech (MS), Decoder Information (DI),
+   * Alternative Frequencies (AF), and Program Service name (PS).
+   */
   void print_info() override;
 
-  /** Parses the data blocks for Group 0A. */
+  /**
+ * @brief Parses the RDS Group 0A data from the provided mData array.
+ *
+ * This function iterates over 4 groups of RDS data, extracting various fields
+ * such as PI, Group Type, TP, PTY, TA, MS, DI, segment, AF1, and AF2 from each
+ * group. It checks for consistency of these values across the groups and fills
+ * the PS (Program Service) string with characters extracted from the blocks.
+ *
+ * @return int Returns 0 if all groups are consistent, otherwise returns 1 if
+ *         any inconsistency is found.
+ */
   int parse();
 };

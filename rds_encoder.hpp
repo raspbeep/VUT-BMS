@@ -253,10 +253,46 @@ public:
    */
   ArgumentParser(int argc, char *argv[]);
   
+  /**
+   * @brief Parses the alternative frequencies string and validates each frequency.
+   * 
+   * This function processes a comma-separated string of alternative frequencies,
+   * validates their format and range, and converts them to an 8-bit format as per
+   * the RDS standard. If any frequency is invalid or if there are not exactly two
+   * frequencies, an error is set.
+   * 
+   * @note The function expects the frequencies to be in a specific format and range.
+   * 
+   * Error conditions:
+   * - More than two frequencies are provided.
+   * - Frequency format does not match the expected regex.
+   * - Frequency is out of the valid range.
+   * - Less than two valid frequencies are provided.
+   */
   void parse_frequencies();
 
+  /**
+   * Parses a boolean value from a string flag.
+   *
+   * @param flag_value The string representation of the boolean value ("0" or "1").
+   * @param value Reference to a boolean variable where the parsed value will be stored.
+   * @return 0 if parsing is successful, -1 if the input is invalid.
+   */
   int parse_boolean(const std::string &flag_value, bool &value);
   
+  /**
+   * @brief Parses a string value, validates its length and content, and stores the result.
+   *
+   * This function checks if the input string `value` does not exceed the specified `length`
+   * and contains only alphanumeric characters. If the string is valid, it is stored in `result`
+   * and padded with spaces to match the specified length. If the string is invalid, an error
+   * message is printed to `std::cerr` and an error code is set.
+   *
+   * @param value The input string to be parsed and validated.
+   * @param result The output string where the validated and padded result is stored.
+   * @param length The maximum allowed length for the input string.
+   * @return 0 if the string is valid, -1 if the string is invalid.
+   */
   int parse_string(const std::string &value, std::string &result,
                    size_t length);
 };

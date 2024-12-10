@@ -6,8 +6,7 @@
  *            Brno University of Technology \n
  *            xkrato61@fit.vutbr.cz
  *
- * @brief     Common source file for RDS encoder and decoder
- *            with shared constants and functions
+ * @brief     Common source file for RDS encoder and decoder.
  *
  * @date      23 November  2024 \n
  */

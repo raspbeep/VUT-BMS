@@ -15,7 +15,7 @@ rds_decoder:
 zip: clean
 	zip xkrato61.zip rds_encoder.cpp rds_encoder.hpp \
 	 rds_decoder.cpp rds_decoder.hpp common.cpp common.hpp \
-	 Makefile xkrato61.pdf
+	 Makefile xkrato61.pdf tester.py
 	sh check_zip.sh xkrato61.zip
 
 clean:
