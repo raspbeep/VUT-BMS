@@ -5,8 +5,7 @@
 #            Brno University of Technology \n
 #            xkrato61@fit.vutbr.cz
 #
-# @brief     Common header file for RDS encoder and decoder
-#            with shared constants and functions
+# @brief     RDS encoder and decoder tester \n
 #
 # @date      23 November  2024 \n 
 
@@ -15,7 +14,7 @@ import subprocess
 ENCODER_PATH = './rds_encoder'
 DECODER_PATH = './rds_decoder'
 
-# [brief, command, expected_result_code, should_check_output, expected_stdout, expected_stderr]
+# [brief, command, expected_result_code, should_check_output, expected_stdout]
 test_encoder_0A = [
   # valid
   ["basic valid 0A", ["-g", "0A", "-pi", "4660", "-pty", "5", "-tp", "1", "-ms", "0", "-ta", "1", "-af", "104.5,98.0", "-ps", "RadioXYZ"], 0, True, "00010010001101000001101010000001001011000011111111101010101001101001000001101101010010011000011010101001000100100011010000011010100000010010110001100100011100000000000000000101101000011001000110100111110001100001001000110100000110101000000100101100100010001100000000000000000001011010000110111101011000010011101000010010001101000001101010000001001011001101001101010000000000000000010110100001011001010110100000100100"],
