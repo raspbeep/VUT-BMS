@@ -2,6 +2,7 @@
 This project implements an RDS (Radio Data System) encoder and decoder for groups 0A and 2A.
 ### Features
 Encodes RDS data for groups 0A and 2A
+
 Decodes RDS data from binary strings
 Supports various RDS fields including PI, PTY, TP, MS, TA, AF, PS, and RT
 ### Usage
